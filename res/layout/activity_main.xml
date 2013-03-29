@@ -41,9 +41,9 @@
         android:id="@+id/listViewMessages"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_below="@+id/buttonSubmit"
+        android:layout_above="@+id/buttonSubmit"
         android:layout_alignParentLeft="true"
-        android:layout_alignParentTop="true" >
+        android:layout_below="@+id/buttonLoad" >
 
     </ListView>
 
