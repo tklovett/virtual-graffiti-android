@@ -8,9 +8,43 @@
     android:paddingTop="@dimen/activity_vertical_margin"
     tools:context=".MainActivity" >
 
-    <TextView
+    <EditText
+        android:id="@+id/editTextInput"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="@string/hello_world" />
+        android:layout_alignParentBottom="true"
+        android:layout_alignParentLeft="true"
+        android:layout_toLeftOf="@+id/buttonSubmit"
+        android:ems="10"
+        android:hint="Leave a message..." />
+
+    <Button
+        android:id="@+id/buttonSubmit"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
+        android:layout_alignParentRight="true"
+        android:onClick="submitMessage"
+        android:text="Submit" />
+
+    <Button
+        android:id="@+id/buttonLoad"
+        style="?android:attr/buttonStyleSmall"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentRight="true"
+        android:layout_alignParentTop="true"
+        android:onClick="getMessages"
+        android:text="Load" />
+
+    <ListView
+        android:id="@+id/listViewMessages"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@+id/buttonSubmit"
+        android:layout_alignParentLeft="true"
+        android:layout_alignParentTop="true" >
+
+    </ListView>
 
 </RelativeLayout>
