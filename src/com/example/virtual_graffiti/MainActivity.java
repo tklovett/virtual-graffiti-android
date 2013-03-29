@@ -5,12 +5,16 @@ import java.util.List;
 
 import android.os.Bundle;
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.view.Menu;
 import android.view.View;
 import android.widget.ArrayAdapter;
 import android.widget.EditText;
 import android.widget.ListView;
+import android.widget.TextView;
 
+import com.littlefluffytoys.littlefluffylocationlibrary.LocationInfo;
+import com.littlefluffytoys.littlefluffylocationlibrary.LocationLibrary;
 import com.parse.FindCallback;
 import com.parse.Parse;
 import com.parse.ParseAnalytics;
@@ -25,6 +29,8 @@ public class MainActivity extends Activity {
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_main);
+		
+		// Parse stuff
 		Parse.initialize(this, "f09jNI2OB82MUvz0iHP8X8ZkKFgjnsC03IGHW240", "s5BkfxQRp75PUNjlKRIew7XieumzS0CcZMBdeIwF");
 		ParseAnalytics.trackAppOpened(getIntent());
 		
@@ -32,6 +38,9 @@ public class MainActivity extends Activity {
 		ParseObject testObject = new ParseObject("TestObject");
 		testObject.put("foo", "bar");
 		testObject.saveInBackground();
+		
+		// Location lib stuff
+		LocationLibrary.initialiseLibrary(getBaseContext(), "com.example.virtual-graffiti");
 		
 		// set up the messageViewer
 //		ListView messages = (ListView)findViewById(R.id.listViewMessages);
@@ -50,7 +59,11 @@ public class MainActivity extends Activity {
 	public void submitMessage(View view) {
 		// get user's coordinates
 		ParseGeoPoint geoPoint = new ParseGeoPoint();
-		// etc
+		LocationInfo latestInfo = new LocationInfo(getBaseContext());
+		geoPoint.setLatitude(latestInfo.lastLat);
+		geoPoint.setLongitude(latestInfo.lastLong);
+		TextView tvLatLng = (TextView)findViewById(R.id.textViewLatLng);
+		tvLatLng.setText("Lat:" + latestInfo.lastLat + "\nLng: " + latestInfo.lastLong);
 		
 		// get user's message
 		EditText etMessage = (EditText)findViewById(R.id.editTextInput);
@@ -79,11 +92,16 @@ public class MainActivity extends Activity {
 	
 	public void getMessages() {
 		// get user's current location
-		ParseGeoPoint currentLocation = new ParseGeoPoint();
+		ParseGeoPoint geoPoint = new ParseGeoPoint();
+		LocationInfo latestInfo = new LocationInfo(getBaseContext());
+		geoPoint.setLatitude(latestInfo.lastLat);
+		geoPoint.setLongitude(latestInfo.lastLong);
+		TextView tvLatLng = (TextView)findViewById(R.id.textViewLatLng);
+		tvLatLng.setText("Lat:" + latestInfo.lastLat + "\nLng: " + latestInfo.lastLong);
 		
 		// Get messages within 50 meters of the current location
 		ParseQuery query = new ParseQuery("GeoMessage");
-		query.whereWithinKilometers("geoPoint", currentLocation, 1000);
+		query.whereWithinKilometers("geoPoint", geoPoint, 1000);
 //		query.setLimit(10);
 		query.findInBackground(new FindCallback() {
 			public void done(List<ParseObject> objects, ParseException e) {
