@@ -25,6 +25,10 @@ import com.parse.ParseQuery;
 
 public class MainActivity extends Activity {
 
+	private ListView msgListView;
+	private List<String> msgList = new ArrayList<String>();
+	private ArrayAdapter<String> adapter;
+	
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
@@ -34,19 +38,20 @@ public class MainActivity extends Activity {
 		Parse.initialize(this, "f09jNI2OB82MUvz0iHP8X8ZkKFgjnsC03IGHW240", "s5BkfxQRp75PUNjlKRIew7XieumzS0CcZMBdeIwF");
 		ParseAnalytics.trackAppOpened(getIntent());
 		
-		// Test Parse SDK functionality
-		ParseObject testObject = new ParseObject("TestObject");
-		testObject.put("foo", "bar");
-		testObject.saveInBackground();
-		
 		// Location lib stuff
 		LocationLibrary.initialiseLibrary(getBaseContext(), "com.example.virtual-graffiti");
 		
-		// set up the messageViewer
-//		ListView messages = (ListView)findViewById(R.id.listViewMessages);
+		// set up the msgListView
+		msgListView = (ListView)findViewById(R.id.listViewMessages);
+		adapter = new ArrayAdapter<String>(this, android.R.layout.simple_list_item_1, msgList);
+		msgListView.setAdapter(adapter);
 		
-		
-		getMessages();
+		// Start a new thread to get the messages
+		new Thread(new Runnable() {
+			public void run() {
+				getMessages();
+			}
+		}).start();
 	}
 
 	@Override
@@ -91,52 +96,67 @@ public class MainActivity extends Activity {
 	}
 	
 	public void getMessages() {
-		// get user's current location
+		// Make 10 attempts to get the users location
+		LocationInfo userLoc = new LocationInfo(getBaseContext());;
+		for (int i = 0; i < 10; ++i)
+		{
+			// check if lat is valid
+			if (userLoc.lastLat < -90   || userLoc.lastLat > 90 ||
+				userLoc.lastLong < -180 || userLoc.lastLong > 180)
+			{
+				if (i == 10)
+				{
+					displayError("Could not get location");
+					return;
+				}
+			}
+			userLoc = new LocationInfo(getBaseContext());
+		}
+		
+		// Got a valid location
 		ParseGeoPoint geoPoint = new ParseGeoPoint();
-		LocationInfo latestInfo = new LocationInfo(getBaseContext());
-		geoPoint.setLatitude(latestInfo.lastLat);
-		geoPoint.setLongitude(latestInfo.lastLong);
-		TextView tvLatLng = (TextView)findViewById(R.id.textViewLatLng);
-		tvLatLng.setText("Lat:" + latestInfo.lastLat + "\nLng: " + latestInfo.lastLong);
+		geoPoint.setLatitude(userLoc.lastLat);
+		geoPoint.setLongitude(userLoc.lastLong);
+		
+		// Display the lat/lng
+		final TextView tvLatLng = (TextView)findViewById(R.id.textViewLatLng);
+		final LocationInfo displayLoc = userLoc;
+		tvLatLng.post(new Runnable() {
+			public void run() {
+				tvLatLng.setText("Lat:" + displayLoc.lastLat + "\nLng: " + displayLoc.lastLong);
+			}
+		});
 		
 		// Get messages within 50 meters of the current location
 		ParseQuery query = new ParseQuery("GeoMessage");
-		query.whereWithinKilometers("geoPoint", geoPoint, 1000);
-//		query.setLimit(10);
+		query.whereWithinKilometers("geoPoint", geoPoint, 0.05);
 		query.findInBackground(new FindCallback() {
 			public void done(List<ParseObject> objects, ParseException e) {
 				if (e == null) {
-					populateMessageView(objects);
+					displayGeoMessages(objects);
 				} else {
-					displayError();
+					displayError(e.getMessage());
 				}
 			}
 		});
 	}
 	
-	public void populateMessageView(List<ParseObject> messages) {
-		ListView messageViewer = (ListView)findViewById(R.id.listViewMessages);
-//		messageViewer.setText("Loaded " + messages.size() + ":\n");
-		
-		ArrayList<String> msgList = new ArrayList<String>();
-		
+	public void displayGeoMessages(List<ParseObject> messages) {
+		msgList.clear();
 		for (ParseObject msg : messages) {
 			msgList.add(msg.getString("message"));
 		}
-		
-		ArrayAdapter<String> adapter =
-				new ArrayAdapter<String>(this, android.R.layout.simple_list_item_1, msgList);
-		messageViewer.setAdapter(adapter);
-		
-		/*for (ParseObject msg : messages) {
-			messageViewer.getText().append(msg.getString("message") + "\n");
-		}*/
-		
+		adapter.notifyDataSetChanged();
 	}
 	
-	public void displayError() {
-		/*EditText messageViewer = (EditText)findViewById(R.id.editTextMessages);
-		messageViewer.setText("Something went wrong...");*/
+	public void displayError(String msg) {
+		AlertDialog.Builder builder = new AlertDialog.Builder(this);
+		builder.setTitle("Error");
+		builder.setMessage(msg);
+		builder.setNeutralButton("Close", null);
+		
+		AlertDialog dialog = builder.create();
+		dialog.show();
 	}
 
 
