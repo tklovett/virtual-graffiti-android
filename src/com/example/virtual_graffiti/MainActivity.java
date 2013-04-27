@@ -3,11 +3,15 @@ package com.example.virtual_graffiti;
 import java.util.ArrayList;
 import java.util.List;
 
-import android.os.Bundle;
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.content.Context;
+import android.content.Intent;
+import android.os.Bundle;
+import android.os.Handler;
 import android.view.Menu;
 import android.view.View;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.ArrayAdapter;
 import android.widget.EditText;
 import android.widget.ListView;
@@ -15,43 +19,47 @@ import android.widget.TextView;
 
 import com.littlefluffytoys.littlefluffylocationlibrary.LocationInfo;
 import com.littlefluffytoys.littlefluffylocationlibrary.LocationLibrary;
-import com.parse.FindCallback;
 import com.parse.Parse;
 import com.parse.ParseAnalytics;
-import com.parse.ParseException;
-import com.parse.ParseGeoPoint;
 import com.parse.ParseObject;
-import com.parse.ParseQuery;
 
 public class MainActivity extends Activity {
 
 	private ListView msgListView;
 	private List<String> msgList = new ArrayList<String>();
 	private ArrayAdapter<String> adapter;
+	private Handler uiHandler = new Handler();
+	private DbHelper dbHelper = new DbHelper();
+	private LocationInfo userLocation;
 	
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_main);
+		setTitle("Virtual Graffiti");
 		
 		// Parse stuff
 		Parse.initialize(this, "f09jNI2OB82MUvz0iHP8X8ZkKFgjnsC03IGHW240", "s5BkfxQRp75PUNjlKRIew7XieumzS0CcZMBdeIwF");
 		ParseAnalytics.trackAppOpened(getIntent());
-		
+
 		// Location lib stuff
-		LocationLibrary.initialiseLibrary(getBaseContext(), "com.example.virtual-graffiti");
+		LocationLibrary.initialiseLibrary(this, "com.example.virtual-graffiti");
+		userLocation = new LocationInfo(this);
 		
 		// set up the msgListView
 		msgListView = (ListView)findViewById(R.id.listViewMessages);
 		adapter = new ArrayAdapter<String>(this, android.R.layout.simple_list_item_1, msgList);
 		msgListView.setAdapter(adapter);
 		
+		if (uiHandler == null) displayError("uiHandler");
+		else if (msgList == null) displayError("msgList");
+		else if (adapter == null) displayError("adapter");
+		else if (this == null) displayError("this");
+		else if (getIntent() == null) displayError("getIntent()");
+		else dbHelper.initialize(this, getIntent(), uiHandler, msgList, adapter);
+		
 		// Start a new thread to get the messages
-		new Thread(new Runnable() {
-			public void run() {
-				getMessages();
-			}
-		}).start();
+		loadListView(null);
 	}
 
 	@Override
@@ -61,84 +69,52 @@ public class MainActivity extends Activity {
 		return true;
 	}
 	
-	public void submitMessage(View view) {
-		// get user's coordinates
-		ParseGeoPoint geoPoint = new ParseGeoPoint();
-		LocationInfo latestInfo = new LocationInfo(getBaseContext());
-		geoPoint.setLatitude(latestInfo.lastLat);
-		geoPoint.setLongitude(latestInfo.lastLong);
-		TextView tvLatLng = (TextView)findViewById(R.id.textViewLatLng);
-		tvLatLng.setText("Lat:" + latestInfo.lastLat + "\nLng: " + latestInfo.lastLong);
-		
+	public void switchToMapView(View view)
+	{
+		Intent myIntent = new Intent(this, ActivityMapView.class);
+//		myIntent.putExtra("key", value); //Optional parameters
+		this.startActivity(myIntent);
+	}
+	
+	public void doSubmit(View view)
+	{
 		// get user's message
-		EditText etMessage = (EditText)findViewById(R.id.editTextInput);
-		String message = etMessage.getText().toString();
+		final EditText etMessage = (EditText)findViewById(R.id.editTextInput);
+		final String msg = etMessage.getText().toString();
 		
-		// Ignore if the input is blank
-		if (message.length() == 0) return;
+		if (msg.replaceAll("\\s", "").equals("")) return;
 		
-		// create and store geomessage
-		ParseObject geoMessage = new ParseObject("GeoMessage");
-		geoMessage.put("geoPoint", geoPoint);
-		geoMessage.put("message", message);
-		geoMessage.saveInBackground();
+		// get the user's coords
+		userLocation.refresh(this);
 		
-		// clear input
-		etMessage.setText("");
+		// push the message to the cloud
+		boolean statusOK = dbHelper.push(msg, userLocation.lastLat, userLocation.lastLong);
 		
-		/*// put message in GeoMessage viewer
-		EditText etMessageViewer = (EditText)findViewById(R.id.editTextMessages);
-		etMessageViewer.getText().insert(0, message + "\n");*/
-	}
-	
-	public void getMessages(View view) {
-		getMessages();
-	}
-	
-	public void getMessages() {
-		// Make 10 attempts to get the users location
-		LocationInfo userLoc = new LocationInfo(getBaseContext());;
-		for (int i = 0; i < 10; ++i)
+		if (!statusOK)
 		{
-			// check if lat is valid
-			if (userLoc.lastLat < -90   || userLoc.lastLat > 90 ||
-				userLoc.lastLong < -180 || userLoc.lastLong > 180)
-			{
-				if (i == 10)
-				{
-					displayError("Could not get location");
-					return;
-				}
-			}
-			userLoc = new LocationInfo(getBaseContext());
+			displayError("Failed to submit message");
+			return;
 		}
 		
-		// Got a valid location
-		ParseGeoPoint geoPoint = new ParseGeoPoint();
-		geoPoint.setLatitude(userLoc.lastLat);
-		geoPoint.setLongitude(userLoc.lastLong);
-		
+		etMessage.setText("");
+		msgList.add(0, msg);
+		adapter.notifyDataSetChanged();
+
+        final InputMethodManager imm = (InputMethodManager)getSystemService(Context.INPUT_METHOD_SERVICE);
+        imm.hideSoftInputFromWindow(view.getWindowToken(), 0);
+		msgListView.smoothScrollToPosition(0);
+	}
+	
+	public void loadListView(View view) {
+		// Get the user's location
+		userLocation.refresh(this);
+		dbHelper.pull(userLocation);
+
 		// Display the lat/lng
 		final TextView tvLatLng = (TextView)findViewById(R.id.textViewLatLng);
-		final LocationInfo displayLoc = userLoc;
-		tvLatLng.post(new Runnable() {
-			public void run() {
-				tvLatLng.setText("Lat:" + displayLoc.lastLat + "\nLng: " + displayLoc.lastLong);
-			}
-		});
+		tvLatLng.setText("Lat:" + userLocation.lastLat + "\nLng: " + userLocation.lastLong);
 		
-		// Get messages within 50 meters of the current location
-		ParseQuery query = new ParseQuery("GeoMessage");
-		query.whereWithinKilometers("geoPoint", geoPoint, 0.05);
-		query.findInBackground(new FindCallback() {
-			public void done(List<ParseObject> objects, ParseException e) {
-				if (e == null) {
-					displayGeoMessages(objects);
-				} else {
-					displayError(e.getMessage());
-				}
-			}
-		});
+
 	}
 	
 	public void displayGeoMessages(List<ParseObject> messages) {
@@ -149,16 +125,15 @@ public class MainActivity extends Activity {
 		adapter.notifyDataSetChanged();
 	}
 	
-	public void displayError(String msg) {
-		AlertDialog.Builder builder = new AlertDialog.Builder(this);
+	public void displayError(final String msg) {
+		
+		AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
 		builder.setTitle("Error");
 		builder.setMessage(msg);
 		builder.setNeutralButton("Close", null);
 		
-		AlertDialog dialog = builder.create();
-		dialog.show();
+		AlertDialog errDialog = builder.create();
+		errDialog.show();
 	}
-
-
 }
 

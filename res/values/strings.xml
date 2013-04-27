@@ -2,7 +2,14 @@
 <resources>
 
     <string name="app_name">virtual-graffiti</string>
+    <string name="app_name_display">Virtual Graffiti</string>
+    <string name="submit">Submit</string>
+    <string name="load">Reload</string>
+    <string name="leave_message_hint">Leave a message&#8230;</string>
+    <string name="default_lat_lng">Lat: unknown\nLng: unknown</string>
     <string name="action_settings">Settings</string>
+    <string name="go_to_map">Map</string>
+    <string name="title_activity_map_view">MapView</string>
     <string name="hello_world">Hello world!</string>
 
 </resources>

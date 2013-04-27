@@ -16,7 +16,7 @@
         android:layout_alignParentLeft="true"
         android:layout_toLeftOf="@+id/buttonSubmit"
         android:ems="10"
-        android:hint="Leave a message..." />
+        android:hint="@string/leave_message_hint" />
 
     <Button
         android:id="@+id/buttonSubmit"
@@ -24,8 +24,8 @@
         android:layout_height="wrap_content"
         android:layout_alignParentBottom="true"
         android:layout_alignParentRight="true"
-        android:onClick="submitMessage"
-        android:text="Submit" />
+        android:onClick="doSubmit"
+        android:text="@string/submit" />
 
     <Button
         android:id="@+id/buttonLoad"
@@ -34,8 +34,8 @@
         android:layout_height="wrap_content"
         android:layout_alignParentRight="true"
         android:layout_alignParentTop="true"
-        android:onClick="getMessages"
-        android:text="Load" />
+        android:onClick="loadListView"
+        android:text="@string/load" />
 
     <ListView
         android:id="@+id/listViewMessages"
@@ -55,6 +55,15 @@
         android:layout_alignParentLeft="true"
         android:layout_alignParentTop="true"
         android:layout_toLeftOf="@+id/buttonLoad"
-        android:text="TextView" />
+        android:text="@string/default_lat_lng" />
+
+    <Button
+        android:id="@+id/buttonMap"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignRight="@+id/textViewLatLng"
+        android:layout_alignTop="@+id/textViewLatLng"
+        android:onClick="switchToMapView"
+        android:text="@string/go_to_map" />
 
 </RelativeLayout>
